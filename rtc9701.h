@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstdint>
+#include <cstring>
 
 struct Rtc9701Interface {
   int address_bits;
