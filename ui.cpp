@@ -14,9 +14,13 @@ bool Ui::Init(SDL_Window* window, void* gl_context) {
   ImGui::StyleColorsDark();
   ImGui_ImplSDL3_InitForOpenGL(window, gl_context);
 
-  const char* glsl_version = "#version 130";
+#if defined(__APPLE__)
+  const char* version = "#version 150\n";
+#else
+  const char* version = "#version 130\n";
+#endif
 
-  ImGui_ImplOpenGL3_Init(glsl_version);
+  ImGui_ImplOpenGL3_Init(version);
 
   return true;
 }

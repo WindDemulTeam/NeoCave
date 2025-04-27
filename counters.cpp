@@ -15,27 +15,27 @@ void Counters::Insert(Counter *counter) {
     counter->prev = nullptr;
   } else {
     if (head->e_cycle < counter->e_cycle) {
-      Counter *current_�ounter = head;
-      Counter *next_�ounter = head->next;
+      Counter *current_counter = head;
+      Counter *next_counter = head->next;
 
-      while (next_�ounter != nullptr) {
-        if (next_�ounter->e_cycle > counter->e_cycle) {
+      while (next_counter != nullptr) {
+        if (next_counter->e_cycle > counter->e_cycle) {
           break;
         }
-        current_�ounter = next_�ounter;
-        next_�ounter = next_�ounter->next;
+        current_counter = next_counter;
+        next_counter = next_counter->next;
       }
 
-      if (current_�ounter == head) {
+      if (current_counter == head) {
         counter->next = head->next;
         counter->prev = head;
         if (head->next != nullptr) head->next->prev = counter;
         head->next = counter;
       } else {
-        counter->next = next_�ounter;
-        if (next_�ounter != nullptr) next_�ounter->prev = counter;
-        counter->prev = current_�ounter;
-        current_�ounter->next = counter;
+        counter->next = next_counter;
+        if (next_counter != nullptr) next_counter->prev = counter;
+        counter->prev = current_counter;
+        current_counter->next = counter;
       }
     } else {
       counter->next = head;
@@ -66,10 +66,10 @@ void Counters::Remove(Counter *counter) {
 void Counters::GetNextCounter() {
   if (nullptr == head) return;
 
-  auto next_�ounter = head->e_cycle - cycle;
+  auto next_counter = head->e_cycle - cycle;
   s_cycle = cycle;
-  e_cycle = cycle + next_�ounter;
-  icount = static_cast<int32_t>(next_�ounter);
+  e_cycle = cycle + next_counter;
+  icount = static_cast<int32_t>(next_counter);
 }
 
 uint32_t Counters::ReadCounter(Counter *counter) {
@@ -84,23 +84,23 @@ uint32_t Counters::ReadCounter(Counter *counter) {
 void Counters::TestCounters() {
   cycle = e_cycle - icount;
 
-  Counter *current_�ounter = head;
-  while (current_�ounter != nullptr) {
-    if (current_�ounter->e_cycle <= cycle) {
-      auto callback = current_�ounter->callback;
+  Counter *current_counter = head;
+  while (current_counter != nullptr) {
+    if (current_counter->e_cycle <= cycle) {
+      auto callback = current_counter->callback;
       if (callback) {
-        callback(current_�ounter);
+        callback(current_counter);
       }
-      Remove(current_�ounter);
-      if ((current_�ounter->mode & Counter::kOneShot) == 0) {
-        Insert(current_�ounter);
-        current_�ounter = head;
+      Remove(current_counter);
+      if ((current_counter->mode & Counter::kOneShot) == 0) {
+        Insert(current_counter);
+        current_counter = head;
         continue;
       }
     } else {
       break;
     }
-    current_�ounter = current_�ounter->next;
+    current_counter = current_counter->next;
   }
   GetNextCounter();
 }

@@ -21,8 +21,8 @@ struct Video {
 
   GLuint shader;
 
-  GLuint a_position;
-  GLuint a_tex_coord;
+  GLuint vao;
+  GLuint vbo;
   GLuint u_texture;
   GLuint texture;
 };

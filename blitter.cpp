@@ -609,16 +609,18 @@ void Blitter::Run() {
       Draw(addr);
       uint32_t offsetx = Read<uint32_t>(0x0014);
       uint32_t offsety = Read<uint32_t>(0x0018);
-
       uint32_t offx = offsetx + (offsety * kSizeX);
 
-      uint8_t *d = reinterpret_cast<uint8_t *>(screen_.data());
-      uint16_t *s = reinterpret_cast<uint16_t *>(gpu_.data());
-
-      for (uint32_t y = 0, offy = 0; y < kHeight; y++) {
-        std::memcpy(&d[offy], &s[offx], kWidth * 2);
-        offy += kWidth * 2;
-        offx += kSizeX;
+      uint16_t *d = reinterpret_cast<uint16_t *>(screen_.data());
+      for (uint32_t y = 0; y < kHeight; y++, offx += kSizeX) {
+        uint16_t *s = reinterpret_cast<uint16_t *>(gpu_.data()) + offx;
+        for (uint32_t x = 0; x < kWidth; x += 8, d += 8) {
+          __m128i value = _mm_loadu_si128(reinterpret_cast<__m128i *>(&s[x]));
+          __m128i rgb = _mm_slli_epi16(value, 1);
+          __m128i alpha = _mm_srli_epi16(value, 15);
+          _mm_storeu_si128(reinterpret_cast<__m128i *>(d),
+                           _mm_or_si128(rgb, alpha));
+        }
       }
     }
   }

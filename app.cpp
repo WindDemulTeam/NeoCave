@@ -124,20 +124,31 @@ bool InitVideo(App* app) {
   SDL_GL_SetSwapInterval(1);
 
   static GLchar vertex_shader[] =
-      "attribute vec4 a_position;\n"
-      "attribute vec4 a_tex_coord;\n"
-      "varying vec4 v_tex_coord;\n"
+      "in vec2 a_position;\n"
+      "in vec2 a_tex_coord;\n"
+      "out vec2 v_tex_coord;\n"
       "void main() {\n"
-      "	gl_Position = a_position;\n"
+      "	gl_Position = vec4(a_position, 1, 1);\n"
       "	v_tex_coord = a_tex_coord;\n"
       "}\n";
 
   static GLchar fragment_shader[] =
       "uniform sampler2D u_texture;\n"
-      "varying vec4 v_tex_coord;\n"
+      "in vec2 v_tex_coord;\n"
+      "out vec4 FragColor;\n"
       "void main() {\n"
-      "	gl_FragColor = texture2D(u_texture, v_tex_coord.xy);\n"
+      "	FragColor = texture(u_texture, v_tex_coord.xy);\n"
       "}\n";
+
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+  SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+  SDL_GL_SetAttribute(SDL_GL_RED_SIZE, 8);
+  SDL_GL_SetAttribute(SDL_GL_GREEN_SIZE, 8);
+  SDL_GL_SetAttribute(SDL_GL_BLUE_SIZE, 8);
+  SDL_GL_SetAttribute(SDL_GL_ALPHA_SIZE, 8);
+  SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 32);
+  SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
 
   app->video.gl_context = SDL_GL_CreateContext(app->video.window);
   SDL_GL_MakeCurrent(app->video.window, app->video.gl_context);
@@ -149,15 +160,41 @@ bool InitVideo(App* app) {
   }
 
   GLuint shader;
+
+#if defined(__APPLE__)
+  const char* version = "#version 150\n";
+#else
+  const char* version = "#version 130\n";
+#endif
+
+  vsh.push_back(version);
   vsh.push_back(vertex_shader);
+
+  psh.push_back(version);
   psh.push_back(fragment_shader);
   if (!ShaderCompile(vsh, psh, shader)) {
     return false;
   }
 
+  static Vertex vertex[] = {{-1.0f, 1.0f, 0.0f, 0.0f},
+                            {1.0f, 1.0f, 1.0f, 0.0f},
+                            {-1.0f, -1.0f, 0.0f, 1.0f},
+                            {1.0f, -1.0f, 1.0f, 1.0f}};
+
+  glGenVertexArrays(1, &app->video.vao);
+  glGenBuffers(1, &app->video.vbo);
+  glBindVertexArray(app->video.vao);
+  glBindBuffer(GL_ARRAY_BUFFER, app->video.vbo);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(vertex), vertex, GL_STATIC_DRAW);
+  glEnableVertexAttribArray(0);
+  glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                        (GLvoid*)offsetof(Vertex, x));
+  glEnableVertexAttribArray(1);
+  glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex),
+                        (GLvoid*)offsetof(Vertex, tu));
+  glBindVertexArray(0);
+
   app->video.shader = shader;
-  app->video.a_position = glGetAttribLocation(shader, "a_position");
-  app->video.a_tex_coord = glGetAttribLocation(shader, "a_tex_coord");
   app->video.u_texture = glGetUniformLocation(shader, "u_texture");
 
   glGenTextures(1, &app->video.texture);
@@ -165,8 +202,8 @@ bool InitVideo(App* app) {
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_BGRA, 320, 240, 0, GL_BGRA,
-               GL_UNSIGNED_SHORT_1_5_5_5_REV, nullptr);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, 320, 240, 0, GL_RGBA,
+               GL_UNSIGNED_SHORT_5_5_5_1, nullptr);
 
   return true;
 }
@@ -257,11 +294,6 @@ SDL_AppResult SDL_AppEvent(void* appstate, SDL_Event* event) {
 }
 
 SDL_AppResult SDL_AppIterate(void* appstate) {
-  static Vertex vertex[] = {{-1.0f, 1.0f, 0.0f, 0.0f},
-                            {1.0f, 1.0f, 1.0f, 0.0f},
-                            {-1.0f, -1.0f, 0.0f, 1.0f},
-                            {1.0f, -1.0f, 1.0f, 1.0f}};
-
   auto* app = (App*)appstate;
 
   if (app->state != kRunning || app->input_setting) {
@@ -293,27 +325,16 @@ SDL_AppResult SDL_AppIterate(void* appstate) {
     glViewport(0, 0, 640, 480);
     glClear(GL_COLOR_BUFFER_BIT);
     glUseProgram(app->video.shader);
-
-    glEnableVertexAttribArray(app->video.a_position);
-    glEnableVertexAttribArray(app->video.a_tex_coord);
-
-    glVertexAttribPointer(app->video.a_position, 2, GL_FLOAT, GL_FALSE,
-                          sizeof(Vertex), &vertex->x);
-    glVertexAttribPointer(app->video.a_tex_coord, 2, GL_FLOAT, GL_FALSE,
-                          sizeof(Vertex), &vertex->tu);
+    glBindVertexArray(app->video.vao);
 
     glActiveTexture(GL_TEXTURE0);
     glBindTexture(GL_TEXTURE_2D, app->video.texture);
     glUniform1i(app->video.texture, 0);
 
-    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 320, 240, GL_BGRA,
-                    GL_UNSIGNED_SHORT_1_5_5_5_REV,
-                    app->cave3rd.GetBlitterData());
+    glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 320, 240, GL_RGBA,
+                    GL_UNSIGNED_SHORT_5_5_5_1, app->cave3rd.GetBlitterData());
 
     glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
-    glDisableVertexAttribArray(app->video.a_position);
-    glDisableVertexAttribArray(app->video.a_tex_coord);
   }
 
   SDL_GL_SwapWindow(app->video.window);

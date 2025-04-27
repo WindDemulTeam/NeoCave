@@ -3,6 +3,18 @@ project(NeoCave VERSION 7.0 LANGUAGES CXX)
 
 find_package(OpenGL REQUIRED)
 
+if(NOT CMAKE_BUILD_TYPE)
+  set(CMAKE_BUILD_TYPE Release)
+endif()
+
+if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -S -fverbose-asm")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -S -fverbose-asm")
+elseif(MSVC)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /Fa")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Fa")
+endif()
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 set(COMMON_BINARY_DIR ${CMAKE_BINARY_DIR}/build)
